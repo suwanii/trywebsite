@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Misinformation Quiz • Suwani Gunasekara</title>
-  <meta name="description" content="A lightweight quiz about misinformation with 6 statements. Choose Accurate or Not, then see the correct answers."/>
+  <meta name="description" content="A lightweight quiz about misinformation with 6 statements. Choose True or False, then see the correct answers."/>
   <style>
     :root {
       --bg: #ffffff;
@@ -56,9 +56,11 @@
     .badge.good { background: color-mix(in oklab, var(--good) 16%, #fff); color: var(--good); }
     .badge.bad { background: color-mix(in oklab, var(--bad) 16%, #fff); color: var(--bad); }
 
-    .explain-links { display: flex; gap: 12px; margin-top: 8px; }
-    .explain-links a { display: inline-block; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; transition: background 0.2s; }
-    .explain-links a:hover { background: #f1f5ff; }
+    /* Embedded video */
+    .explain { display: grid; gap: 10px; margin-top: 8px; }
+    .ratio { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .ratio iframe, .ratio video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .explain a.more { display: inline-block; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; width: fit-content; }
   </style>
 </head>
 <body>
@@ -74,8 +76,6 @@
 
       <div class="progress"><span id="progressBar"></span></div>
       
-
-        <iframe width="736" height="442" src="https://www.youtube.com/embed/6ivCoAy8MM8" title="Yes, phones work because of radiation but no, they can’t hurt you 📱 #Shorts #5G #Science" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       <div id="screen-intro">
         <p>This short quiz contains 6 statements about online information. Click <em>Start</em> when you're ready.</p>
         <button class="btn btn-primary" id="startBtn">Start</button>
@@ -98,7 +98,6 @@
         <div class="results" id="results"></div>
         <div>
           <button class="btn" id="restartBtn">Restart</button>
-          <button class="btn btn-primary" id="copyBtn">Copy Results</button>
         </div>
       </div>
     </main>
@@ -156,7 +155,6 @@
     const startBtn = document.getElementById('startBtn');
     const skipBtn = document.getElementById('skipBtn');
     const restartBtn = document.getElementById('restartBtn');
-    const copyBtn = document.getElementById('copyBtn');
 
     const btnAccurate = document.getElementById('btnAccurate');
     const btnNot = document.getElementById('btnNot');
@@ -194,6 +192,63 @@
 
     function recordAnswer(val){ answers[current]=val; goNext(); }
 
+    // --- EMBED HELPERS ---
+    function getYouTubeId(url){
+      try {
+        const u = new URL(url);
+        const host = u.hostname.replace('www.','');
+        if(host==='youtu.be') return u.pathname.slice(1);
+        if(host.includes('youtube.com')){
+          if(u.pathname.startsWith('/embed/')) return u.pathname.split('/')[2];
+          const sp = u.searchParams.get('v');
+          if(sp) return sp;
+          // Shorts
+          if(u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2];
+        }
+      } catch {}
+      return null;
+    }
+
+    function getTikTokId(url){
+      try {
+        const u = new URL(url);
+        if(u.hostname.includes('tiktok.com')){
+          const parts = u.pathname.split('/').filter(Boolean);
+          return parts.includes('video') ? parts[parts.length-1] : null;
+        }
+      } catch {}
+      return null;
+    }
+
+    function buildEmbed(url){
+      if(!url) return '';
+      const yt = getYouTubeId(url);
+      if(yt){
+        const src = `https://www.youtube-nocookie.com/embed/${yt}`;
+        return `<div class="ratio"><iframe src="${src}" title="Video explanation" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`;
+      }
+      const tt = getTikTokId(url);
+      if(tt){
+        const src = `https://www.tiktok.com/embed/v2/video/${tt}`;
+        return `<div class="ratio"><iframe src="${src}" title="TikTok explanation" allow="encrypted-media; autoplay; clipboard-write; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`;
+      }
+      // Vimeo or direct video fallback
+      try{
+        const u = new URL(url);
+        const host = u.hostname.replace('www.','');
+        const path = u.pathname || '';
+        if(host.includes('vimeo.com')){
+          const id = path.split('/').filter(Boolean).pop();
+          return `<div class="ratio"><iframe src="https://player.vimeo.com/video/${id}" title="Vimeo explanation" allowfullscreen></iframe></div>`;
+        }
+        if(/\.(mp4|webm|ogg)$/i.test(path)){
+          return `<div class="ratio"><video src="${url}" controls preload="metadata"></video></div>`;
+        }
+      }catch{}
+      // Generic iframe as last resort
+      return `<div class="ratio"><iframe src="${url}" title="Explanation"></iframe></div>`;
+    }
+
     function showResults(){
       hide(screenQuestion);
       show(screenResults);
@@ -207,14 +262,15 @@
         if(isCorrect) correct++;
         const div=document.createElement('div');
         div.className='result-item';
+        const embedHTML = buildEmbed(item.videoLink);
         div.innerHTML=`
           <div class="badge ${isCorrect?'good':'bad'}">${isCorrect?'✓ Correct':'✕ Incorrect'}</div>
           <div><strong>Statement ${idx+1}:</strong> ${item.text}</div>
-          <div><strong>Your answer:</strong> ${user===null?'<em>Skipped</em>':(user?'Accurate':'Not Accurate')}</div>
-          <div><strong>Correct:</strong> ${item.isAccurate?'Accurate':'Not Accurate'}</div>
-          <div class="explain-links">
-            <a href="${item.videoLink}" target="_blank">🎬 Video explanation</a>
-            <a href="${item.textLink}" target="_blank">📄 Text explanation</a>
+          <div><strong>Your answer:</strong> ${user===null?'<em>Skipped</em>':(user?'True':'False')}</div>
+          <div><strong>Correct:</strong> ${item.isAccurate?'True':'False'}</div>
+          <div class="explain">
+            ${embedHTML}
+            <a class="more" href="${item.textLink}" target="_blank" rel="noopener">More information ↗</a>
           </div>`;
         resultsEl.appendChild(div);
       });
