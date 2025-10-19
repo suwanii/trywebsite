@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Misinformation Quiz • Suwani Gunasekara</title>
+  <meta name="description" content="A lightweight quiz about misinformation with 6 statements. Choose Accurate or Not, then see the correct answers."/>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #111111;
+      --muted: #6b7280;
+      --accent: #1f4fff;
+      --accent-contrast: #ffffff;
+      --card: #f8fafc;
+      --border: #e5e7eb;
+      --good: #16a34a;
+      --bad: #dc2626;
+      --radius: 16px;
+      --shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: var(--fg);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 880px; margin: 0 auto; padding: 24px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .brand { font-weight: 700; font-size: 1.1rem; }
+    .brand small { color: var(--muted); font-weight: 500; }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; }
+
+    .progress { height: 10px; background: #eef2ff; border-radius: 999px; overflow: hidden; margin: 16px 0 24px; border: 1px solid var(--border); }
+    .progress > span { display: block; height: 100%; width: 0%; background: var(--accent); transition: width 300ms ease; }
+
+    .statement { font-size: 1.25rem; font-weight: 600; margin: 8px 0 20px; }
+
+    .choices { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 12px; }
+    .btn { border: 1px solid var(--border); background: #fff; color: var(--fg); padding: 14px 16px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform .06s ease, background .2s ease; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--accent); color: var(--accent-contrast); }
+
+    .results { display: grid; gap: 14px; margin: 18px 0 0; }
+    .result-item { border: 1px solid var(--border); background: #fff; border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: .85rem; padding: 4px 10px; border-radius: 999px; }
+    .badge.good { background: color-mix(in oklab, var(--good) 16%, #fff); color: var(--good); }
+    .badge.bad { background: color-mix(in oklab, var(--bad) 16%, #fff); color: var(--bad); }
+
+    .explain-links { display: flex; gap: 12px; margin-top: 8px; }
+    .explain-links a { display: inline-block; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; transition: background 0.2s; }
+    .explain-links a:hover { background: #f1f5ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">Suwani Gunasekara <small>• Misinformation Quiz</small></div>
+      <a href="https://suwanigunasekara.com" target="_blank">View website ↗</a>
+    </header>
+
+    <main class="card" id="app">
+      <h1>How many do you know?</h1>
+      <p>Read each statement and choose <strong>True</strong> or <strong>False</strong>. You'll see all the correct answers at the end.</p>
+
+      <div class="progress"><span id="progressBar"></span></div>
+      
+
+        <iframe width="736" height="442" src="https://www.youtube.com/embed/6ivCoAy8MM8" title="Yes, phones work because of radiation but no, they can’t hurt you 📱 #Shorts #5G #Science" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      <div id="screen-intro">
+        <p>This short quiz contains 6 statements about online information. Click <em>Start</em> when you're ready.</p>
+        <button class="btn btn-primary" id="startBtn">Start</button>
+      </div>
+
+      <div id="screen-question" style="display:none;">
+        <div id="counter">Question 1 of 6</div>
+        <div class="statement" id="statement"></div>
+        <div class="choices">
+          <button class="btn" data-choice="true" id="btnAccurate">True</button>
+          <button class="btn" data-choice="false" id="btnNot">False</button>
+        </div>
+        <div id="progressText">0/6 answered</div>
+        <button class="btn" id="skipBtn">Skip ↷</button>
+      </div>
+
+      <div id="screen-results" style="display:none;">
+        <h2>Results</h2>
+        <p id="scoreLine">You scored 0/6.</p>
+        <div class="results" id="results"></div>
+        <div>
+          <button class="btn" id="restartBtn">Restart</button>
+          <button class="btn btn-primary" id="copyBtn">Copy Results</button>
+        </div>
+      </div>
+    </main>
+
+    <footer>Designed for <a href="https://suwanigunasekara.com">suwanigunasekara.com</a>.</footer>
+  </div>
+
+  <script>
+    const STATEMENTS = [
+      {
+        text: "5G is harmful to human health",
+        isAccurate: false,
+        videoLink: "https://www.youtube.com/watch?v=6ivCoAy8MM8",
+        textLink: "https://www.who.int/news-room/q-a-detail/radiation-5g-mobile-networks-and-health"
+      },
+      {
+        text: "MSG is an unsafe flavor enhancer that poses risks to overall health",
+        isAccurate: false,
+        videoLink: "https://youtube.com/shorts/sMo-ZmyJNXQ?si=mwYh11FPEfSyjM8V",
+        textLink: "https://www.fda.gov/food/food-additives-petitions/questions-and-answers-monosodium-glutamate-msg"
+      },
+      {
+        text: "Microwaves cause cancer and other serious health issues due to radiation",
+        isAccurate: false,
+        videoLink: "https://youtube.com/shorts/TwLuvGeq47Y?si=Lp-wc1NdkorrFz6h",
+        textLink: "https://www.cancerresearchuk.org/health-professional/cancer-controversies/microwaves"
+      },
+      {
+        text: "People can be divided as left and right brain people.",
+        isAccurate: false,
+        videoLink: "https://www.tiktok.com/@doctorhoeflinger/video/7455429280583994667",
+        textLink: "https://www.scientificamerican.com/article/left-brain-right-brain-myth/"
+      },
+      {
+        text: "Individuals learn better when they receive information in their preferred learning style",
+        isAccurate: false,
+        videoLink: "https://youtube.com/shorts/x8wUSgg5NLo?si=k0R6AuHVLbPEkgEo",
+        textLink: "https://www.psychologicalscience.org/observer/learning-styles-are-not-an-effective-teaching-strategy"
+      },
+      {
+        text: "It takes 21 days to form a habit.",
+        isAccurate: false,
+        videoLink: "https://www.tiktok.com/@melrobbins/video/7192763442745396485",
+        textLink: "https://onlinelibrary.wiley.com/doi/abs/10.1002/ejsp.674"
+      }
+    ];
+
+    let current = 0;
+    const answers = Array(STATEMENTS.length).fill(null);
+
+    const screenIntro = document.getElementById('screen-intro');
+    const screenQuestion = document.getElementById('screen-question');
+    const screenResults = document.getElementById('screen-results');
+
+    const startBtn = document.getElementById('startBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const copyBtn = document.getElementById('copyBtn');
+
+    const btnAccurate = document.getElementById('btnAccurate');
+    const btnNot = document.getElementById('btnNot');
+
+    const statementEl = document.getElementById('statement');
+    const counterEl = document.getElementById('counter');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const scoreLine = document.getElementById('scoreLine');
+    const resultsEl = document.getElementById('results');
+
+    function show(el){ el.style.display=''; }
+    function hide(el){ el.style.display='none'; }
+
+    function updateProgress(){
+      const answered = answers.filter(a=>a!==null).length;
+      const pct = (current/STATEMENTS.length)*100;
+      progressBar.style.width = pct+'%';
+      progressText.textContent = `${answered}/${STATEMENTS.length} answered`;
+      counterEl.textContent = `Question ${Math.min(current+1, STATEMENTS.length)} of ${STATEMENTS.length}`;
+    }
+
+    function renderQuestion(){
+      const item = STATEMENTS[current];
+      statementEl.textContent = item.text;
+      updateProgress();
+    }
+
+    function goNext(){
+      if(current < STATEMENTS.length-1){
+        current++;
+        renderQuestion();
+      } else showResults();
+    }
+
+    function recordAnswer(val){ answers[current]=val; goNext(); }
+
+    function showResults(){
+      hide(screenQuestion);
+      show(screenResults);
+      progressBar.style.width='100%';
+
+      let correct=0;
+      resultsEl.innerHTML='';
+      STATEMENTS.forEach((item,idx)=>{
+        const user=answers[idx];
+        const isCorrect=user===item.isAccurate;
+        if(isCorrect) correct++;
+        const div=document.createElement('div');
+        div.className='result-item';
+        div.innerHTML=`
+          <div class="badge ${isCorrect?'good':'bad'}">${isCorrect?'✓ Correct':'✕ Incorrect'}</div>
+          <div><strong>Statement ${idx+1}:</strong> ${item.text}</div>
+          <div><strong>Your answer:</strong> ${user===null?'<em>Skipped</em>':(user?'Accurate':'Not Accurate')}</div>
+          <div><strong>Correct:</strong> ${item.isAccurate?'Accurate':'Not Accurate'}</div>
+          <div class="explain-links">
+            <a href="${item.videoLink}" target="_blank">🎬 Video explanation</a>
+            <a href="${item.textLink}" target="_blank">📄 Text explanation</a>
+          </div>`;
+        resultsEl.appendChild(div);
+      });
+      scoreLine.textContent=`You scored ${correct}/${STATEMENTS.length}.`;
+    }
+
+    function restart(){ current=0; answers.fill(null); hide(screenResults); show(screenIntro); progressBar.style.width='0%'; progressText.textContent=`0/${STATEMENTS.length} answered`; }
+
+    startBtn.addEventListener('click',()=>{ hide(screenIntro); show(screenQuestion); renderQuestion(); });
+    skipBtn.addEventListener('click',()=>recordAnswer(null));
+    btnAccurate.addEventListener('click',()=>recordAnswer(true));
+    btnNot.addEventListener('click',()=>recordAnswer(false));
+    restartBtn.addEventListener('click',restart);
+  </script>
+</body>
+</html>
